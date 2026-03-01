@@ -1,0 +1,4 @@
+.env
+*.log
+*.err
+kiro-relay
