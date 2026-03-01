@@ -64,13 +64,6 @@ internal/
 2. Add platform config to `internal/config/config.go`
 3. Wire it up in `cmd/kiro-relay/main.go`
 
-## Run as macOS service
-
-```bash
-cp com.kiro.via-telegram.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.kiro.via-telegram.plist
-```
-
 ## Requirements
 
 - Go 1.21+

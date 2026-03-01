@@ -69,3 +69,11 @@ func (sm *SessionManager) Send(key, prompt string) (string, error) {
 
 	return resp, nil
 }
+
+func (sm *SessionManager) SetWorkDir(dir string) {
+	sm.kiro.SetWorkDir(dir)
+}
+
+func (sm *SessionManager) GetWorkDir() string {
+	return sm.kiro.GetWorkDir()
+}

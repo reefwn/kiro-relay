@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
@@ -14,16 +15,15 @@ type Adapter struct {
 	api      *tgbotapi.BotAPI
 	cfg      *Config
 	sessions *relay.SessionManager
-	workDir  string
 }
 
-func New(cfg *Config, sm *relay.SessionManager, workDir string) (*Adapter, error) {
+func New(cfg *Config, sm *relay.SessionManager) (*Adapter, error) {
 	api, err := tgbotapi.NewBotAPI(cfg.Token)
 	if err != nil {
 		return nil, err
 	}
 	slog.Info("telegram adapter started", "username", api.Self.UserName)
-	return &Adapter{api: api, cfg: cfg, sessions: sm, workDir: workDir}, nil
+	return &Adapter{api: api, cfg: cfg, sessions: sm}, nil
 }
 
 func (a *Adapter) Run(stop <-chan struct{}) {
@@ -86,12 +86,20 @@ func (a *Adapter) handleCommand(msg *tgbotapi.Message) {
 	switch msg.Command() {
 	case "start":
 		a.sessions.Start(key)
-		a.reply(msg.Chat.ID, fmt.Sprintf("🆕 New kiro session started.\nWork dir: %s\nSend any message to chat.\nUse /end to end the session.", a.workDir))
+		a.reply(msg.Chat.ID, fmt.Sprintf("🆕 New kiro session started.\nWork dir: %s\nSend any message to chat.\nUse /end to end the session.", a.sessions.GetWorkDir()))
 	case "end":
 		a.sessions.End(key)
 		a.reply(msg.Chat.ID, "👋 Session ended.")
+	case "workdir":
+		dir := strings.TrimSpace(msg.CommandArguments())
+		if dir == "" {
+			a.reply(msg.Chat.ID, fmt.Sprintf("📂 Current: %s\nUsage: /workdir /path/to/dir", a.sessions.GetWorkDir()))
+			return
+		}
+		a.sessions.SetWorkDir(dir)
+		a.reply(msg.Chat.ID, fmt.Sprintf("📂 Work dir changed to: %s", dir))
 	default:
-		a.reply(msg.Chat.ID, "Unknown command. Use /start or /end.")
+		a.reply(msg.Chat.ID, "Unknown command. Use /start, /end, or /workdir.")
 	}
 }
 
