@@ -3,6 +3,7 @@ package config
 import (
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -26,7 +27,15 @@ func Load() *Config {
 
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
-		return v
+		return expandHome(v)
 	}
 	return fallback
+}
+
+func expandHome(path string) string {
+	if strings.HasPrefix(path, "~/") || path == "~" {
+		home, _ := os.UserHomeDir()
+		return strings.Replace(path, "~", home, 1)
+	}
+	return path
 }
