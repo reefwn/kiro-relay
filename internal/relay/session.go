@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"log/slog"
 	"sync"
 
 	"kiro-relay/internal/kiro"
@@ -55,10 +56,15 @@ func (sm *SessionManager) Send(key, prompt string) (string, error) {
 		return "", nil
 	}
 
+	slog.Info("request", "session", key, "prompt", prompt)
+
 	resp, err := sm.kiro.Run(prompt, s.HasHistory)
 	if err != nil {
+		slog.Error("response error", "session", key, "error", err)
 		return "", err
 	}
+
+	slog.Info("response", "session", key, "response", resp)
 
 	sm.mu.Lock()
 	if sess, exists := sm.sessions[key]; exists {
