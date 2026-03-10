@@ -83,3 +83,15 @@ func (sm *SessionManager) SetWorkDir(dir string) {
 func (sm *SessionManager) GetWorkDir() string {
 	return sm.kiro.GetWorkDir()
 }
+
+func (sm *SessionManager) ListAgents() (string, error) {
+	return sm.kiro.ListAgents()
+}
+
+func (sm *SessionManager) SetAgent(agent string) {
+	sm.kiro.SetAgent(agent)
+}
+
+func (sm *SessionManager) GetAgent() string {
+	return sm.kiro.GetAgent()
+}
