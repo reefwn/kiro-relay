@@ -32,6 +32,7 @@ var (
 type Client struct {
 	WorkDir    string
 	TrustTools string
+	Agent      string
 	mu         sync.Mutex
 }
 
@@ -146,6 +147,12 @@ func (c *Client) Run(prompt string, resume bool) (string, error) {
 	if resume {
 		args = append(args, "--resume")
 	}
+	c.mu.Lock()
+	agent := c.Agent
+	c.mu.Unlock()
+	if agent != "" {
+		args = append(args, "--agent", agent)
+	}
 	args = append(args, "--", prompt)
 
 	cmd := exec.CommandContext(ctx, "kiro-cli", args...)
@@ -184,4 +191,69 @@ func (c *Client) DeleteSession(id string) error {
 	cmd := exec.Command("kiro-cli", "chat", "--delete-session", id)
 	cmd.Dir = c.WorkDir
 	return cmd.Run()
+}
+
+func (c *Client) ListAgents() (string, error) {
+	cmd := exec.Command("kiro-cli", "agent", "list")
+	cmd.Dir = c.WorkDir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("list-agents: %w", err)
+	}
+	raw := strings.TrimSpace(ansiRe.ReplaceAllString(string(out), ""))
+	
+	c.mu.Lock()
+	currentAgent := c.Agent
+	c.mu.Unlock()
+	
+	// Parse and format: extract name and scope only
+	var result []string
+	lines := strings.Split(raw, "\n")
+	for _, line := range lines {
+		// Skip header lines and empty lines
+		if line == "" || strings.HasPrefix(line, "Workspace:") || strings.HasPrefix(line, "Global:") {
+			continue
+		}
+		
+		// Lines with continuation (indented) should be skipped
+		if strings.HasPrefix(line, "                    ") {
+			continue
+		}
+		
+		// Agent lines start with * or spaces
+		if !strings.HasPrefix(line, "*") && !strings.HasPrefix(line, " ") {
+			continue
+		}
+		
+		// Extract agent name and scope (first two columns)
+		fields := strings.Fields(line)
+		if len(fields) >= 2 {
+			name := strings.TrimPrefix(fields[0], "*")
+			scope := fields[1]
+			
+			// Add * if this is the current agent
+			prefix := "  "
+			if currentAgent == name || (currentAgent == "" && strings.HasPrefix(line, "*")) {
+				prefix = "* "
+			}
+			result = append(result, fmt.Sprintf("%s%s %s", prefix, name, scope))
+		}
+	}
+	
+	if len(result) == 0 {
+		return raw, nil
+	}
+	return strings.Join(result, "\n"), nil
+}
+
+func (c *Client) SetAgent(agent string) {
+	c.mu.Lock()
+	c.Agent = agent
+	c.mu.Unlock()
+}
+
+func (c *Client) GetAgent() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Agent
 }

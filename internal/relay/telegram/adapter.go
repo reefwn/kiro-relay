@@ -98,8 +98,42 @@ func (a *Adapter) handleCommand(msg *tgbotapi.Message) {
 		}
 		a.sessions.SetWorkDir(dir)
 		a.reply(msg.Chat.ID, fmt.Sprintf("📂 Work dir changed to: %s", dir))
+	case "agent":
+		args := strings.Fields(msg.CommandArguments())
+		if len(args) == 0 {
+			current := a.sessions.GetAgent()
+			if current == "" {
+				current = "(default)"
+			}
+			a.reply(msg.Chat.ID, fmt.Sprintf("🤖 Current: %s\nUsage: /agent list | /agent set <name>", current))
+			return
+		}
+		
+		switch args[0] {
+		case "list":
+			agents, err := a.sessions.ListAgents()
+			if err != nil {
+				a.reply(msg.Chat.ID, "❌ "+err.Error())
+				return
+			}
+			current := a.sessions.GetAgent()
+			if current != "" {
+				agents = fmt.Sprintf("Current: %s\n\n%s", current, agents)
+			}
+			a.reply(msg.Chat.ID, agents)
+		case "set":
+			if len(args) < 2 {
+				a.reply(msg.Chat.ID, "Usage: /agent set <name>")
+				return
+			}
+			agent := args[1]
+			a.sessions.SetAgent(agent)
+			a.reply(msg.Chat.ID, fmt.Sprintf("🤖 Agent set to: %s", agent))
+		default:
+			a.reply(msg.Chat.ID, "Usage: /agent list | /agent set <name>")
+		}
 	default:
-		a.reply(msg.Chat.ID, "Unknown command. Use /start, /end, or /workdir.")
+		a.reply(msg.Chat.ID, "Unknown command. Use /start, /end, /workdir, or /agent.")
 	}
 }
 
