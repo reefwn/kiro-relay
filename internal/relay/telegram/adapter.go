@@ -3,6 +3,8 @@ package telegram
 import (
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -64,7 +66,7 @@ func (a *Adapter) handle(msg *tgbotapi.Message) {
 
 	key := a.sessionKey(uid)
 	if _, active := a.sessions.Get(key); !active {
-		a.reply(msg.Chat.ID, "No active session. Send /start first.")
+		a.reply(msg.Chat.ID, "No active session. Send /chat start first.")
 		return
 	}
 
@@ -84,31 +86,64 @@ func (a *Adapter) handleCommand(msg *tgbotapi.Message) {
 	key := a.sessionKey(uid)
 
 	switch msg.Command() {
-	case "start":
-		a.sessions.Start(key)
-		a.reply(msg.Chat.ID, fmt.Sprintf("🆕 New kiro session started.\nWork dir: %s\nSend any message to chat.\nUse /end to end the session.", a.sessions.GetWorkDir()))
-	case "end":
-		a.sessions.End(key)
-		a.reply(msg.Chat.ID, "👋 Session ended.")
-	case "workdir":
-		dir := strings.TrimSpace(msg.CommandArguments())
-		if dir == "" {
-			a.reply(msg.Chat.ID, fmt.Sprintf("📂 Current: %s\nUsage: /workdir /path/to/dir", a.sessions.GetWorkDir()))
+	case "chat":
+		args := strings.Fields(msg.CommandArguments())
+		if len(args) == 0 {
+			_, active := a.sessions.Get(key)
+			if active {
+				a.reply(msg.Chat.ID, "✅ Active session\nSend any message to chat.\nUse /chat end to end the session.")
+			} else {
+				a.reply(msg.Chat.ID, "❌ No active session\nUsage: /chat start | /chat end")
+			}
 			return
 		}
-		a.sessions.SetWorkDir(dir)
-		a.reply(msg.Chat.ID, fmt.Sprintf("📂 Work dir changed to: %s", dir))
+		switch args[0] {
+		case "start":
+			a.sessions.Start(key)
+			a.reply(msg.Chat.ID, fmt.Sprintf("🆕 New kiro session started.\nWork dir: %s\nSend any message to chat.\nUse /chat end to end the session.", a.sessions.GetWorkDir()))
+		case "end":
+			a.sessions.End(key)
+			a.reply(msg.Chat.ID, "👋 Session ended.")
+		default:
+			a.reply(msg.Chat.ID, "Usage: /chat start | /chat end")
+		}
+	case "workdir":
+		args := strings.Fields(msg.CommandArguments())
+		if len(args) == 0 {
+			a.reply(msg.Chat.ID, fmt.Sprintf("📂 Current: %s\nUsage: /workdir set <dir>", a.sessions.GetWorkDir()))
+			return
+		}
+		if args[0] == "set" {
+			if _, active := a.sessions.Get(key); active {
+				a.reply(msg.Chat.ID, "❌ Cannot change workdir during active session. Use /chat end first.")
+				return
+			}
+			if len(args) < 2 {
+				a.reply(msg.Chat.ID, "Usage: /workdir set <dir>")
+				return
+			}
+			dir := strings.Join(args[1:], " ")
+			if strings.HasPrefix(dir, "~") {
+				home, _ := os.UserHomeDir()
+				dir = filepath.Join(home, dir[1:])
+			}
+			if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
+				a.reply(msg.Chat.ID, fmt.Sprintf("❌ Directory does not exist: %s", dir))
+				return
+			}
+			a.sessions.SetWorkDir(dir)
+			a.reply(msg.Chat.ID, fmt.Sprintf("📂 Work dir changed to: %s", dir))
+		} else {
+			a.reply(msg.Chat.ID, "Usage: /workdir set <dir>")
+		}
 	case "agent":
 		args := strings.Fields(msg.CommandArguments())
 		if len(args) == 0 {
 			current := a.sessions.GetAgent()
-			if current == "" {
-				current = "(default)"
-			}
 			a.reply(msg.Chat.ID, fmt.Sprintf("🤖 Current: %s\nUsage: /agent list | /agent set <name>", current))
 			return
 		}
-		
+
 		switch args[0] {
 		case "list":
 			agents, err := a.sessions.ListAgents()
@@ -118,7 +153,7 @@ func (a *Adapter) handleCommand(msg *tgbotapi.Message) {
 			}
 			current := a.sessions.GetAgent()
 			if current != "" {
-				agents = fmt.Sprintf("Current: %s\n\n%s", current, agents)
+				agents = fmt.Sprintf("🤖 Current: %s\n\n%s", current, agents)
 			}
 			a.reply(msg.Chat.ID, agents)
 		case "set":
@@ -133,7 +168,7 @@ func (a *Adapter) handleCommand(msg *tgbotapi.Message) {
 			a.reply(msg.Chat.ID, "Usage: /agent list | /agent set <name>")
 		}
 	default:
-		a.reply(msg.Chat.ID, "Unknown command. Use /start, /end, /workdir, or /agent.")
+		a.reply(msg.Chat.ID, "Unknown command. Use /chat, /workdir, or /agent.")
 	}
 }
 
