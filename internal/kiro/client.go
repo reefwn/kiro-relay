@@ -23,10 +23,10 @@ var skipPrefixes = []string{
 }
 
 var (
-	creditsRe  = regexp.MustCompile(`(?i)credits:\s*[\d.]+`)
-	contextRe  = regexp.MustCompile(`(?i)(\d+)%.*context`)
-	timeRe     = regexp.MustCompile(`(?i)time:\s*[\d.]+\s*[sm]`)
-	statusRe   = regexp.MustCompile(`[▸▹►]`)
+	creditsRe = regexp.MustCompile(`(?i)credits:\s*[\d.]+`)
+	contextRe = regexp.MustCompile(`(?i)(\d+)%.*context`)
+	timeRe    = regexp.MustCompile(`(?i)time:\s*[\d.]+\s*[sm]`)
+	statusRe  = regexp.MustCompile(`[▸▹►]`)
 )
 
 type Client struct {
@@ -201,11 +201,7 @@ func (c *Client) ListAgents() (string, error) {
 		return "", fmt.Errorf("list-agents: %w", err)
 	}
 	raw := strings.TrimSpace(ansiRe.ReplaceAllString(string(out), ""))
-	
-	c.mu.Lock()
-	currentAgent := c.Agent
-	c.mu.Unlock()
-	
+
 	// Parse and format: extract name and scope only
 	var result []string
 	lines := strings.Split(raw, "\n")
@@ -214,32 +210,26 @@ func (c *Client) ListAgents() (string, error) {
 		if line == "" || strings.HasPrefix(line, "Workspace:") || strings.HasPrefix(line, "Global:") {
 			continue
 		}
-		
+
 		// Lines with continuation (indented) should be skipped
 		if strings.HasPrefix(line, "                    ") {
 			continue
 		}
-		
+
 		// Agent lines start with * or spaces
 		if !strings.HasPrefix(line, "*") && !strings.HasPrefix(line, " ") {
 			continue
 		}
-		
+
 		// Extract agent name and scope (first two columns)
 		fields := strings.Fields(line)
 		if len(fields) >= 2 {
-			name := strings.TrimPrefix(fields[0], "*")
+			name := strings.TrimSpace(strings.TrimPrefix(fields[0], "*"))
 			scope := fields[1]
-			
-			// Add * if this is the current agent
-			prefix := "  "
-			if currentAgent == name || (currentAgent == "" && strings.HasPrefix(line, "*")) {
-				prefix = "* "
-			}
-			result = append(result, fmt.Sprintf("%s%s %s", prefix, name, scope))
+			result = append(result, fmt.Sprintf("%s %s", name, scope))
 		}
 	}
-	
+
 	if len(result) == 0 {
 		return raw, nil
 	}

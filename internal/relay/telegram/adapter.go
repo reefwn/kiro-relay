@@ -102,13 +102,10 @@ func (a *Adapter) handleCommand(msg *tgbotapi.Message) {
 		args := strings.Fields(msg.CommandArguments())
 		if len(args) == 0 {
 			current := a.sessions.GetAgent()
-			if current == "" {
-				current = "(default)"
-			}
 			a.reply(msg.Chat.ID, fmt.Sprintf("🤖 Current: %s\nUsage: /agent list | /agent set <name>", current))
 			return
 		}
-		
+
 		switch args[0] {
 		case "list":
 			agents, err := a.sessions.ListAgents()
@@ -118,7 +115,7 @@ func (a *Adapter) handleCommand(msg *tgbotapi.Message) {
 			}
 			current := a.sessions.GetAgent()
 			if current != "" {
-				agents = fmt.Sprintf("Current: %s\n\n%s", current, agents)
+				agents = fmt.Sprintf("🤖 Current: %s\n\n%s", current, agents)
 			}
 			a.reply(msg.Chat.ID, agents)
 		case "set":

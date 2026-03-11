@@ -93,5 +93,10 @@ func (sm *SessionManager) SetAgent(agent string) {
 }
 
 func (sm *SessionManager) GetAgent() string {
-	return sm.kiro.GetAgent()
+	current := sm.kiro.GetAgent()
+	if current == "" {
+		return "kiro_default (default)"
+	}
+
+	return current
 }
