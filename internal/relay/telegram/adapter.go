@@ -3,6 +3,8 @@ package telegram
 import (
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -101,13 +103,34 @@ func (a *Adapter) handleCommand(msg *tgbotapi.Message) {
 			a.reply(msg.Chat.ID, "Usage: /chat start | /chat end")
 		}
 	case "workdir":
-		dir := strings.TrimSpace(msg.CommandArguments())
-		if dir == "" {
-			a.reply(msg.Chat.ID, fmt.Sprintf("📂 Current: %s\nUsage: /workdir /path/to/dir", a.sessions.GetWorkDir()))
+		args := strings.Fields(msg.CommandArguments())
+		if len(args) == 0 {
+			a.reply(msg.Chat.ID, fmt.Sprintf("📂 Current: %s\nUsage: /workdir set <dir>", a.sessions.GetWorkDir()))
 			return
 		}
-		a.sessions.SetWorkDir(dir)
-		a.reply(msg.Chat.ID, fmt.Sprintf("📂 Work dir changed to: %s", dir))
+		if args[0] == "set" {
+			if _, active := a.sessions.Get(key); active {
+				a.reply(msg.Chat.ID, "❌ Cannot change workdir during active session. Use /chat end first.")
+				return
+			}
+			if len(args) < 2 {
+				a.reply(msg.Chat.ID, "Usage: /workdir set <dir>")
+				return
+			}
+			dir := strings.Join(args[1:], " ")
+			if strings.HasPrefix(dir, "~") {
+				home, _ := os.UserHomeDir()
+				dir = filepath.Join(home, dir[1:])
+			}
+			if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
+				a.reply(msg.Chat.ID, fmt.Sprintf("❌ Directory does not exist: %s", dir))
+				return
+			}
+			a.sessions.SetWorkDir(dir)
+			a.reply(msg.Chat.ID, fmt.Sprintf("📂 Work dir changed to: %s", dir))
+		} else {
+			a.reply(msg.Chat.ID, "Usage: /workdir set <dir>")
+		}
 	case "agent":
 		args := strings.Fields(msg.CommandArguments())
 		if len(args) == 0 {
