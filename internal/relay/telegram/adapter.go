@@ -89,7 +89,12 @@ func (a *Adapter) handleCommand(msg *tgbotapi.Message) {
 	case "chat":
 		args := strings.Fields(msg.CommandArguments())
 		if len(args) == 0 {
-			a.reply(msg.Chat.ID, "Usage: /chat start | /chat end")
+			_, active := a.sessions.Get(key)
+			if active {
+				a.reply(msg.Chat.ID, "✅ Active session\nSend any message to chat.\nUse /chat end to end the session.")
+			} else {
+				a.reply(msg.Chat.ID, "❌ No active session\nUsage: /chat start | /chat end")
+			}
 			return
 		}
 		switch args[0] {
